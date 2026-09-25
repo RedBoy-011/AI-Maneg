@@ -1,0 +1,6 @@
+{
+  "name": "GapGPT Enterprise Infrastructure Manager",
+  "description": "پلتفرم دستیار هوشمند و مدیریت یکپارچه زیرساخت‌های فناوری اطلاعات و سرورها",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

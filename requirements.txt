@@ -1,0 +1,6 @@
+flask>=3.0.2
+requests[socks]>=2.31.0
+PySocks>=1.7.1
+urllib3>=2.2.1
+werkzeug>=3.0.1
+pyinstaller>=6.4.0

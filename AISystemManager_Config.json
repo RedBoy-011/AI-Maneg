@@ -1,0 +1,41 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 5000,
+    "secret_key": "gapgpt-enterprise-infra-secret-key-prod"
+  },
+  "api_settings": {
+    "gemini_api_key": "",
+    "openrouter_api_key": "",
+    "active_provider": "gemini",
+    "active_model": "gemini-2.5-flash",
+    "temperature": 0.4
+  },
+  "proxy_settings": {
+    "enabled": false,
+    "host": "127.0.0.1",
+    "port": 10808,
+    "username": "",
+    "password": ""
+  },
+  "users": [
+    {
+      "username": "admin",
+      "password_hash": "scrypt:32768:8:1$uH34G7K8xL9p$d89ef67319bd699fb443bfeceee37a0a0fa2e3c0ee6114eb3074d08129e92aef37b988f700412ee10cf6bbf46d79eeb13bc74d0925206951913c4c82b814df30",
+      "role": "admin",
+      "display_name": "مدیر ارشد زیرساخت"
+    },
+    {
+      "username": "user",
+      "password_hash": "scrypt:32768:8:1$kM98vT21qW5z$72e50529dcf28a6fcf79f323869e5d4cb0573dc0a0d4c180fe165b44955745dc71b83d8bc617b43f9a72b6c7a72382103f6f1c42289c0bcbe9d9a1c8b3687352",
+      "role": "user",
+      "display_name": "کارشناس شبکه و سیستم"
+    }
+  ],
+  "skills": {
+    "docker_nginx": true,
+    "network_tunnels": true,
+    "active_directory_esxi": true,
+    "n8n_automation": true
+  }
+}

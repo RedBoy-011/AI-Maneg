@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ورود به سامانه | GapGPT Enterprise Infrastructure Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Vazirmatn', 'Vazir', 'IRANSansWeb', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #111113;
+      color: #e2e8f0;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 antialiased selection:bg-cyan-500/20 selection:text-cyan-200">
+
+  <!-- Main Login Card Container -->
+  <div class="w-full max-w-md bg-[#18181b] border border-zinc-800 rounded-xl p-8 shadow-2xl relative">
+    
+    <!-- Top Brand Header -->
+    <div class="mb-8 text-center">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-zinc-900 border border-zinc-700 text-cyan-400 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight text-white mb-1.5">GapGPT Enterprise</h1>
+      <p class="text-xs text-zinc-400">سامانه مدیریت و اتوماسیون زیرساخت‌های فناوری اطلاعات</p>
+    </div>
+
+    <!-- Feedback Banner -->
+    <div id="alertBox" class="hidden mb-5 p-3 rounded-lg text-xs leading-relaxed border transition-all duration-200"></div>
+
+    <!-- Login Form (No Default Values As Requested) -->
+    <form id="loginForm" class="space-y-5" autocomplete="off">
+      <div>
+        <label for="username" class="block text-xs font-medium text-zinc-300 mb-2">نام کاربری سازمانی</label>
+        <div class="relative">
+          <input
+            type="text"
+            id="username"
+            name="username"
+            required
+            autocomplete="off"
+            placeholder=""
+            class="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label for="password" class="block text-xs font-medium text-zinc-300 mb-2">کلمه عبور</label>
+        <div class="relative">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            required
+            autocomplete="new-password"
+            placeholder=""
+            class="w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button
+          type="submit"
+          id="submitBtn"
+          class="w-full flex items-center justify-center py-2.5 px-4 bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+        >
+          <span id="btnText">ورود به پنل مدیریت</span>
+          <svg id="btnSpinner" class="hidden animate-spin mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </button>
+      </div>
+    </form>
+
+    <!-- Footer metadata note -->
+    <div class="mt-8 pt-6 border-t border-zinc-800 text-center">
+      <div class="text-[11px] text-zinc-500 flex items-center justify-center gap-2">
+        <span>پروتکل امن سازمانی</span>
+        <span aria-hidden="true">·</span>
+        <span>کنترل دسترسی RBAC</span>
+        <span aria-hidden="true">·</span>
+        <span class="font-mono">v2.5.0</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const alertBox = document.getElementById('alertBox');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        showAlert('لطفاً نام کاربری و کلمه عبور را تکمیل نمایید.', 'error');
+        return;
+      }
+
+      setLoading(true);
+      hideAlert();
+
+      try {
+        const response = await fetch('/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          showAlert('احراز هویت موفقیت‌آمیز بود. در حال انتقال...', 'success');
+          // Save session info in client-side storage for local state separation
+          localStorage.setItem('gapgpt_current_user', data.username);
+          localStorage.setItem('gapgpt_user_role', data.role);
+          localStorage.setItem('gapgpt_display_name', data.display_name || data.username);
+          
+          setTimeout(() => {
+            window.location.href = data.redirect || '/';
+          }, 400);
+        } else {
+          showAlert(data.error || 'اطلاعات ورود نامعتبر است.', 'error');
+          setLoading(false);
+        }
+      } catch (err) {
+        showAlert('خطا در برقراری ارتباط با سرور. لطفاً وضعیت سرویس را بررسی کنید.', 'error');
+        setLoading(false);
+      }
+    });
+
+    function showAlert(message, type) {
+      alertBox.textContent = message;
+      alertBox.classList.remove('hidden', 'bg-red-950/60', 'text-red-300', 'border-red-800', 'bg-emerald-950/60', 'text-emerald-300', 'border-emerald-800');
+      if (type === 'success') {
+        alertBox.classList.add('bg-emerald-950/60', 'text-emerald-300', 'border-emerald-800');
+      } else {
+        alertBox.classList.add('bg-red-950/60', 'text-red-300', 'border-red-800');
+      }
+    }
+
+    function hideAlert() {
+      alertBox.classList.add('hidden');
+    }
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        submitBtn.disabled = true;
+        btnText.textContent = 'در حال اعتبارسنجی...';
+        btnSpinner.classList.remove('hidden');
+      } else {
+        submitBtn.disabled = false;
+        btnText.textContent = 'ورود به پنل مدیریت';
+        btnSpinner.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>

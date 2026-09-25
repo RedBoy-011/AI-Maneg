@@ -1,0 +1,81 @@
+name: Build GapGPT Enterprise Standalone Executable
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Prepare Assets & Directories
+        shell: bash
+        run: |
+          mkdir -p build_output
+          cp -r src/templates build_output/
+          if [ -f AISystemManager_Config.json ]; then
+            cp AISystemManager_Config.json build_output/
+          fi
+
+      - name: Build Standalone Executable via PyInstaller
+        shell: cmd
+        run: |
+          pyinstaller --noconfirm --clean ^
+            --name "GapGPT-Manager" ^
+            --onefile ^
+            --console ^
+            --add-data "src/templates;templates" ^
+            --add-data "AISystemManager_Config.json;." ^
+            --hidden-import="socks" ^
+            --hidden-import="requests" ^
+            --hidden-import="flask" ^
+            --hidden-import="werkzeug" ^
+            --hidden-import="urllib3" ^
+            src/app.py
+
+      - name: Generate stop.bat Alongside Final Output
+        shell: cmd
+        run: |
+          echo @echo off > dist\stop.bat
+          echo chcp 65001 ^>nul >> dist\stop.bat
+          echo title GapGPT Enterprise Stopper >> dist\stop.bat
+          echo echo. >> dist\stop.bat
+          echo echo ====================================================================== >> dist\stop.bat
+          echo echo   GapGPT Enterprise Infrastructure Manager - Stopping Process >> dist\stop.bat
+          echo echo ====================================================================== >> dist\stop.bat
+          echo echo. >> dist\stop.bat
+          echo taskkill /F /IM GapGPT-Manager.exe /T 2^>nul >> dist\stop.bat
+          echo echo [OK] GapGPT Enterprise Server has been stopped successfully. >> dist\stop.bat
+          echo pause >> dist\stop.bat
+
+      - name: Copy Initial Configuration to Dist
+        shell: cmd
+        run: |
+          if exist AISystemManager_Config.json copy AISystemManager_Config.json dist\
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GapGPT-Enterprise-Windows-Build
+          path: |
+            dist/GapGPT-Manager.exe
+            dist/stop.bat
+            dist/AISystemManager_Config.json
+          retention-days: 14

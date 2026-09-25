@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GapGPT Enterprise Infrastructure Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body {
+      font-family: 'Vazirmatn', 'Vazir', 'IRANSansWeb', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #111113;
+      color: #e2e8f0;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Prose Markdown Styling inside Chat Messages */
+    .prose-dark {
+      color: #e2e8f0;
+      line-height: 1.7;
+    }
+    .prose-dark pre {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 0.5rem;
+      padding: 0.85rem;
+      margin: 0.6rem 0;
+      direction: ltr;
+      text-align: left;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.825rem;
+    }
+    .prose-dark code {
+      font-family: 'JetBrains Mono', monospace;
+      background: #27272a;
+      padding: 0.15rem 0.35rem;
+      border-radius: 0.25rem;
+      font-size: 0.825rem;
+      direction: ltr;
+      display: inline-block;
+    }
+    .prose-dark pre code {
+      background: transparent;
+      padding: 0;
+      display: block;
+    }
+    .prose-dark ul, .prose-dark ol {
+      padding-right: 1.25rem;
+      margin: 0.5rem 0;
+    }
+    .prose-dark li {
+      margin-bottom: 0.25rem;
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col antialiased selection:bg-cyan-500/20 selection:text-cyan-200 overflow-hidden">
+
+  <!-- Top Navigation Bar (Zone 1: Brand | Zone 2: Navigation & Status | Zone 3: Actions) -->
+  <header class="h-14 bg-[#141416] border-b border-zinc-800 px-5 flex items-center justify-between shrink-0 z-20">
+    <!-- Zone 1: Single text element wordmark -->
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-cyan-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span class="text-sm font-bold tracking-tight text-white">GapGPT Enterprise</span>
+        <span class="text-[11px] text-zinc-500 hidden sm:inline">مدیریت هوشمند زیرساخت</span>
+      </div>
+    </div>
+
+    <!-- Zone 2: Dynamic Model Selector & User Context -->
+    <div class="flex items-center gap-3">
+      <!-- Dynamic Model Selector Box -->
+      <div class="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-1 text-xs">
+        <span class="text-zinc-500 text-[11px]">مدل:</span>
+        <select id="modelSelector" class="bg-transparent text-cyan-400 text-xs font-mono focus:outline-none cursor-pointer max-w-[190px] truncate">
+          <option value="gemini-2.5-flash" class="bg-zinc-900 text-white">gemini-2.5-flash (پیش‌فرض)</option>
+          <option value="gemini-1.5-pro" class="bg-zinc-900 text-white">gemini-1.5-pro</option>
+          <option value="gemini-1.5-flash" class="bg-zinc-900 text-white">gemini-1.5-flash</option>
+        </select>
+      </div>
+
+      <!-- User Role Indicator -->
+      <div class="flex items-center gap-2 text-xs text-zinc-400 border-r border-zinc-800 pr-3">
+        <span id="navDisplayName" class="font-medium text-white truncate max-w-[100px]">{{ display_name }}</span>
+        <span id="navRoleBadge" class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+          {{ role }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Zone 3: Actions -->
+    <div class="flex items-center gap-2">
+      <!-- Admin Terminal Toggle (Admin only) -->
+      {% if role == 'admin' %}
+      <button id="terminalToggleBtn" class="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs rounded-lg border border-zinc-800 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span>ترمینال سرور</span>
+      </button>
+
+      <!-- Settings Modal Button (Admin only) -->
+      <button id="openSettingsBtn" class="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600/10 hover:bg-cyan-600/20 text-cyan-400 hover:text-cyan-300 text-xs font-medium rounded-lg border border-cyan-800/40 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span>تنظیمات سیستم</span>
+      </button>
+      {% endif %}
+
+      <!-- Logout Button -->
+      <a href="/logout" class="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors" title="خروج از حساب">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Viewport Workspace -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- Primary Chat Column -->
+    <main class="flex-1 flex flex-col h-full bg-[#111113] overflow-hidden">
+
+      <!-- Conversation Messages Scroll Area -->
+      <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+        
+        <!-- Welcome Banner if empty -->
+        <div id="welcomeBanner" class="max-w-2xl mx-auto my-6 text-center">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 text-cyan-400 mb-4 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h2 class="text-base font-bold text-white mb-2">دستیار مهندسی زیرساخت و اتوماسیون</h2>
+          <p class="text-xs text-zinc-400 leading-relaxed mb-6 max-w-lg mx-auto">
+            آماده پاسخگویی و ارائه اسکریپت‌های بهینه‌سازی Nginx، کانتینرهای داکر، تونل‌های WireGuard/GRE، اکتیو دایرکتوری و سناریوهای n8n.
+          </p>
+
+          <!-- Quick Infrastructure Prompts Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-right">
+            <button onclick="sendQuickPrompt('کانفیگ کامل Nginx برای Reverse Proxy با SSL و WebSocket همراه با Rate Limiting بنویس.')" class="p-3 bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs text-zinc-300 transition-all text-right group">
+              <div class="font-medium text-white group-hover:text-cyan-400 mb-1">اتوماسیون Nginx & SSL</div>
+              <div class="text-[11px] text-zinc-500">پیکربندی بهینه ریورس پروکسی و وب‌سوکت</div>
+            </button>
+            <button onclick="sendQuickPrompt('پیکربندی کامل سرور و کلاینت WireGuard (wg0.conf) با تنظیم MTU و فایروال iptables.')" class="p-3 bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs text-zinc-300 transition-all text-right group">
+              <div class="font-medium text-white group-hover:text-cyan-400 mb-1">تونل شبکه WireGuard</div>
+              <div class="text-[11px] text-zinc-500">راه‌اندازی امن بین‌دیتاسنتری و تنظیم MTU</div>
+            </button>
+            <button onclick="sendQuickPrompt('اسکریپت PowerShell برای جستجو و غیرفعال‌سازی کاربران غیرفعال اکتیو دایرکتوری (Inactive AD Users).')" class="p-3 bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs text-zinc-300 transition-all text-right group">
+              <div class="font-medium text-white group-hover:text-cyan-400 mb-1">مدیریت Active Directory</div>
+              <div class="text-[11px] text-zinc-500">اسکریپت امن PowerShell برای گزارش‌گیری و پاکسازی</div>
+            </button>
+            <button onclick="sendQuickPrompt('طراحی یک سناریوی n8n برای نظارت بر کانتینرهای داکر و ارسال آلارم تلگرام در صورت بروز خطا.')" class="p-3 bg-zinc-900/80 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg text-xs text-zinc-300 transition-all text-right group">
+              <div class="font-medium text-white group-hover:text-cyan-400 mb-1">اتوماسیون ترکیبی n8n</div>
+              <div class="text-[11px] text-zinc-500">طراحی جریان کاری وب‌هوک و مانیتورینگ سلامت</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat messages will be injected here dynamically -->
+      </div>
+
+      <!-- Chat Input Area -->
+      <div class="p-4 bg-[#141416] border-t border-zinc-800">
+        <form id="chatForm" class="max-w-4xl mx-auto flex items-end gap-2 relative">
+          <div class="flex-1 bg-zinc-900 border border-zinc-700 focus-within:border-cyan-500 rounded-xl p-2 transition-colors">
+            <textarea
+              id="chatInput"
+              rows="1"
+              placeholder="دستور یا سوال زیرساختی خود را بنویسید (Shift+Enter برای خط جدید)..."
+              class="w-full bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none resize-none max-h-32 px-2 py-1 leading-relaxed"
+            ></textarea>
+          </div>
+          
+          <!-- Actions Container -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              id="clearHistoryBtn"
+              class="p-2.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors border border-transparent hover:border-zinc-700"
+              title="پاک کردن تاریخچه چت کاربر جاری"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+
+            <button
+              type="submit"
+              id="sendBtn"
+              class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+            >
+              <span>ارسال</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+
+    <!-- Slide-in Host Terminal Drawer (Admin Only) -->
+    {% if role == 'admin' %}
+    <aside id="terminalDrawer" class="hidden w-96 bg-[#0f0f11] border-l border-zinc-800 flex flex-col h-full z-10">
+      <div class="h-14 px-4 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="text-xs font-bold text-white">ترمینال و اتوماسیون زنده</span>
+        </div>
+        <button id="closeTerminalBtn" class="text-zinc-500 hover:text-white p-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="p-3 border-b border-zinc-800/80 bg-zinc-900/40 grid grid-cols-2 gap-1.5 text-[11px]">
+        <button onclick="runQuickAction('docker_ps')" class="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-300 text-center transition-colors">
+          Docker Containers
+        </button>
+        <button onclick="runQuickAction('nginx_test')" class="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-300 text-center transition-colors">
+          تست Nginx
+        </button>
+        <button onclick="runQuickAction('wireguard_status')" class="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-300 text-center transition-colors">
+          وضعیت WireGuard
+        </button>
+        <button onclick="runQuickAction('system_metrics')" class="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-zinc-300 text-center transition-colors">
+          منابع سیستم
+        </button>
+      </div>
+
+      <!-- Terminal Output Window -->
+      <div id="terminalOutput" class="flex-1 p-3 overflow-y-auto font-mono text-[11px] text-emerald-400 bg-black/90 space-y-2 leading-relaxed selection:bg-emerald-900 selection:text-white direction-ltr text-left">
+        <div class="text-zinc-500"># GapGPT Host System Controller ready.</div>
+      </div>
+
+      <!-- Command Input -->
+      <form id="terminalForm" class="p-2 bg-zinc-950 border-t border-zinc-800 flex gap-1.5">
+        <input
+          type="text"
+          id="terminalInput"
+          placeholder="دستور PowerShell یا CMD..."
+          class="flex-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-cyan-500"
+        />
+        <button type="submit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-mono">
+          Run
+        </button>
+      </form>
+    </aside>
+    {% endif %}
+
+  </div>
+
+  <!-- Unified Admin Settings Modal (Partitions: API, SOCKS5 Proxy, Users, Server, Skills) -->
+  {% if role == 'admin' %}
+  <div id="settingsModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-3xl bg-[#18181b] border border-zinc-800 rounded-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="h-14 px-6 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-900/60">
+        <div class="flex items-center gap-2.5">
+          <div class="p-1.5 bg-cyan-600/20 text-cyan-400 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          </div>
+          <h3 class="text-sm font-bold text-white">پیکربندی جامع پلتفرم سازمانی</h3>
+        </div>
+        <button id="closeSettingsBtn" class="text-zinc-400 hover:text-white p-1 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div class="flex items-center px-6 border-b border-zinc-800 bg-zinc-950/40 text-xs">
+        <button onclick="switchTab('apiTab')" id="btn-apiTab" class="tab-btn py-3 px-4 text-cyan-400 border-b-2 border-cyan-400 font-medium transition-colors">
+          تنظیمات API و مدل‌ها
+        </button>
+        <button onclick="switchTab('proxyTab')" id="btn-proxyTab" class="tab-btn py-3 px-4 text-zinc-400 hover:text-white transition-colors">
+          پراکسی SOCKS5
+        </button>
+        <button onclick="switchTab('usersTab')" id="btn-usersTab" class="tab-btn py-3 px-4 text-zinc-400 hover:text-white transition-colors">
+          کاربران و سطوح دسترسی (RBAC)
+        </button>
+        <button onclick="switchTab('skillsTab')" id="btn-skillsTab" class="tab-btn py-3 px-4 text-zinc-400 hover:text-white transition-colors">
+          بانک مهارت‌ها
+        </button>
+        <button onclick="switchTab('serverTab')" id="btn-serverTab" class="tab-btn py-3 px-4 text-zinc-400 hover:text-white transition-colors">
+          عملیات سرور
+        </button>
+      </div>
+
+      <!-- Modal Body (Tab Panels) -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+        <!-- TAB 1: API Settings & Dynamic Model Fetching -->
+        <div id="tab-apiTab" class="tab-content space-y-5">
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-4">
+            <h4 class="text-xs font-semibold text-white flex items-center justify-between">
+              <span>اتصال به Google Gemini API</span>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline text-[11px] inline-flex items-center gap-1 font-normal">
+                دریافت کلید API جمینای
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </h4>
+            <div class="relative">
+              <input
+                type="password"
+                id="cfgGeminiKey"
+                placeholder="AIzaSy..."
+                class="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <button
+              type="button"
+              onclick="testAndFetchModels('gemini')"
+              class="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-cyan-400 hover:text-cyan-300 text-xs rounded-lg border border-zinc-700 transition-colors flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>تست ارتباط و دریافت مدل‌های جمینای</span>
+            </button>
+          </div>
+
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-4">
+            <h4 class="text-xs font-semibold text-white flex items-center justify-between">
+              <span>اتصال به OpenRouter API</span>
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline text-[11px] inline-flex items-center gap-1 font-normal">
+                دریافت کلید OpenRouter
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </h4>
+            <div class="relative">
+              <input
+                type="password"
+                id="cfgOpenRouterKey"
+                placeholder="sk-or-v1-..."
+                class="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <button
+              type="button"
+              onclick="testAndFetchModels('openrouter')"
+              class="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-cyan-400 hover:text-cyan-300 text-xs rounded-lg border border-zinc-700 transition-colors flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>تست ارتباط و دریافت مدل‌های OpenRouter</span>
+            </button>
+          </div>
+
+          <!-- Dynamic Fetch Status Output -->
+          <div id="modelFetchResult" class="hidden p-3 rounded-lg text-xs border leading-relaxed"></div>
+        </div>
+
+        <!-- TAB 2: SOCKS5 Proxy Settings -->
+        <div id="tab-proxyTab" class="tab-content hidden space-y-4">
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-xs font-semibold text-white">فعال‌سازی پراکسی SOCKS5</div>
+                <div class="text-[11px] text-zinc-400">تمام ترافیک چت و استخراج مدل‌ها از این پراکسی عبور داده خواهد شد.</div>
+              </div>
+              <input type="checkbox" id="cfgProxyEnabled" class="w-4 h-4 accent-cyan-500 cursor-pointer" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div>
+                <label class="block text-xs text-zinc-400 mb-1">آدرس سرور یا IP</label>
+                <input type="text" id="cfgProxyHost" placeholder="127.0.0.1" class="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500" />
+              </div>
+              <div>
+                <label class="block text-xs text-zinc-400 mb-1">پورت (Port)</label>
+                <input type="number" id="cfgProxyPort" placeholder="10808" class="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-500" />
+              </div>
+              <div>
+                <label class="block text-xs text-zinc-400 mb-1">نام کاربری پراکسی (اختیاری)</label>
+                <input type="text" id="cfgProxyUser" placeholder="" class="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500" />
+              </div>
+              <div>
+                <label class="block text-xs text-zinc-400 mb-1">رمز عبور پراکسی (اختیاری)</label>
+                <input type="password" id="cfgProxyPass" placeholder="" class="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: User Management (RBAC) -->
+        <div id="tab-usersTab" class="tab-content hidden space-y-5">
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800">
+            <h4 class="text-xs font-semibold text-white mb-3">افزودن کاربر جدید</h4>
+            <form id="addUserForm" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <label class="block text-zinc-400 mb-1">نام کاربری (انگلیسی)</label>
+                <input type="text" id="newUsername" required class="w-full px-3 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-white" />
+              </div>
+              <div>
+                <label class="block text-zinc-400 mb-1">کلمه عبور</label>
+                <input type="password" id="newPassword" required class="w-full px-3 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-white" />
+              </div>
+              <div>
+                <label class="block text-zinc-400 mb-1">نام نمایشی</label>
+                <input type="text" id="newDisplayName" placeholder="مثلاً مهندس رضایی" class="w-full px-3 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-white" />
+              </div>
+              <div>
+                <label class="block text-zinc-400 mb-1">سطح دسترسی (Role)</label>
+                <select id="newRole" class="w-full px-3 py-1.5 bg-zinc-950 border border-zinc-700 rounded text-white">
+                  <option value="user">کاربر عادی (user) - فقط چت</option>
+                  <option value="admin">مدیر سیستم (admin) - دسترسی کامل</option>
+                </select>
+              </div>
+              <div class="sm:col-span-2 pt-2">
+                <button type="submit" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs">
+                  ثبت کاربر در سامانه
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Existing Users List -->
+          <div>
+            <h4 class="text-xs font-semibold text-white mb-2">لیست کاربران تعریف‌شده در سامانه</h4>
+            <div id="usersListContainer" class="border border-zinc-800 rounded-lg overflow-hidden bg-zinc-900/40 text-xs">
+              <div class="p-3 text-zinc-500 text-center">در حال دریافت لیست...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: Skills Bank -->
+        <div id="tab-skillsTab" class="tab-content hidden space-y-4">
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-3">
+            <h4 class="text-xs font-semibold text-white">بانک مهارت‌های هوشمند زیرساخت</h4>
+            <p class="text-xs text-zinc-400 leading-relaxed">
+              این ماژول‌ها دستورالعمل‌های سیستمی و نقش‌های تخصصی را جهت پاسخگویی دقیق و استخراج اسکریپت‌های معتبر در هوش مصنوعی تزریق می‌کنند:
+            </p>
+            
+            <div class="space-y-2 pt-2 text-xs">
+              <div class="flex items-start gap-3 p-2.5 bg-zinc-950 rounded border border-zinc-800">
+                <input type="checkbox" id="skillDockerNginx" checked class="mt-0.5 accent-cyan-500 cursor-pointer" />
+                <div>
+                  <div class="font-medium text-white">مدیریت و اتوماسیون Nginx و Docker</div>
+                  <div class="text-[11px] text-zinc-500">پیکربندی ریورس پروکسی، گواهی SSL، سلامت کانتینرها و docker-compose</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-2.5 bg-zinc-950 rounded border border-zinc-800">
+                <input type="checkbox" id="skillTunnels" checked class="mt-0.5 accent-cyan-500 cursor-pointer" />
+                <div>
+                  <div class="font-medium text-white">پیکربندی تونل‌های شبکه (WireGuard & GRE)</div>
+                  <div class="text-[11px] text-zinc-500">تولید ساختار wg0.conf، تنظیم MTU، مسیریابی و امنیت فایروال</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-2.5 bg-zinc-950 rounded border border-zinc-800">
+                <input type="checkbox" id="skillADEsxi" checked class="mt-0.5 accent-cyan-500 cursor-pointer" />
+                <div>
+                  <div class="font-medium text-white">مدیریت Active Directory، ESXi و سرویس‌های ویندوز</div>
+                  <div class="text-[11px] text-zinc-500">اسکریپت‌های PowerShell، مانیتورینگ esxcli و سرویس‌های سیستمی</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-2.5 bg-zinc-950 rounded border border-zinc-800">
+                <input type="checkbox" id="skillN8n" checked class="mt-0.5 accent-cyan-500 cursor-pointer" />
+                <div>
+                  <div class="font-medium text-white">یکپارچه‌سازی و سناریوهای اتوماسیون ترکیبی (n8n)</div>
+                  <div class="text-[11px] text-zinc-500">طراحی جریان‌های کاری وب‌هوک، مانیتورینگ سلامت سرور و اعلان تلگرام</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 5: Server Operations -->
+        <div id="tab-serverTab" class="tab-content hidden space-y-4">
+          <div class="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-4">
+            <h4 class="text-xs font-semibold text-white">عملیات چرخه حیات سرور GapGPT</h4>
+            <p class="text-xs text-zinc-400">کنترل اجرای پردازش بک‌اند محلی سامانه روی سیستم میزبان.</p>
+            
+            <div class="flex flex-wrap gap-3 pt-2">
+              <button onclick="triggerServerAction('restart')" class="px-4 py-2 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-600/40 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>راه‌اندازی مجدد سرور (Restart)</span>
+              </button>
+
+              <button onclick="triggerServerAction('shutdown')" class="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-600/40 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-6.364-2.636 9 9 0 010-12.728m0 0l2.829 2.829M8.464 15.536a5 5 0 010-7.072m0 0L5.636 5.636" />
+                </svg>
+                <span>خاموش کردن سرور (Shutdown)</span>
+              </button>
+            </div>
+            
+            <div id="serverOpFeedback" class="hidden text-xs p-3 rounded-lg border"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="h-16 px-6 border-t border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-900/60">
+        <span id="saveStatusMsg" class="text-xs text-zinc-400"></span>
+        <div class="flex items-center gap-2">
+          <button id="cancelModalBtn" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs transition-colors">
+            بستن
+          </button>
+          <button id="saveConfigBtn" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-medium transition-colors shadow-sm">
+            ذخیره تنظیمات
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Core Single Page Application Client Logic -->
+  <script>
+    // State management
+    const currentUser = "{{ username }}";
+    const userRole = "{{ role }}";
+    let chatHistory = [];
+    const storageKey = `gapgpt_chats_${currentUser}`;
+
+    // Initialize DOM references
+    const messagesContainer = document.getElementById('messagesContainer');
+    const welcomeBanner = document.getElementById('welcomeBanner');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const modelSelector = document.getElementById('modelSelector');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+    // Load initial user chat history from LocalStorage (Separated per username as requested)
+    function loadChatHistory() {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        try {
+          chatHistory = JSON.parse(stored);
+          if (chatHistory.length > 0) {
+            welcomeBanner.classList.add('hidden');
+            renderAllMessages();
+          }
+        } catch (e) {
+          console.error("Error loading chat history:", e);
+          chatHistory = [];
+        }
+      }
+    }
+
+    function saveChatHistory() {
+      localStorage.setItem(storageKey, JSON.stringify(chatHistory));
+    }
+
+    function renderAllMessages() {
+      messagesContainer.innerHTML = '';
+      chatHistory.forEach(msg => appendMessageToDOM(msg.role, msg.content));
+      scrollToBottom();
+    }
+
+    function appendMessageToDOM(role, content) {
+      const isUser = (role === 'user');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `flex ${isUser ? 'justify-start' : 'justify-end'} mb-4`;
+
+      const bubble = document.createElement('div');
+      bubble.className = `max-w-3xl rounded-xl p-4 text-xs leading-relaxed ${
+        isUser
+          ? 'bg-zinc-800/90 text-white border border-zinc-700/80'
+          : 'bg-zinc-900/95 text-zinc-100 border border-zinc-800 shadow-md prose-dark'
+      }`;
+
+      if (isUser) {
+        bubble.textContent = content;
+      } else {
+        // Parse markdown with marked
+        bubble.innerHTML = marked.parse(content);
+        // Add copy buttons to code blocks
+        bubble.querySelectorAll('pre').forEach(pre => {
+          const copyBtn = document.createElement('button');
+          copyBtn.textContent = 'کپی کد';
+          copyBtn.className = 'float-left text-[10px] text-zinc-400 hover:text-cyan-400 font-mono mb-1 px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 transition-colors';
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(pre.querySelector('code')?.innerText || pre.innerText);
+            copyBtn.textContent = 'کپی شد!';
+            setTimeout(() => copyBtn.textContent = 'کپی کد', 1500);
+          };
+          pre.insertBefore(copyBtn, pre.firstChild);
+        });
+      }
+
+      msgDiv.appendChild(bubble);
+      messagesContainer.appendChild(msgDiv);
+    }
+
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Chat form submission
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      welcomeBanner.classList.add('hidden');
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+
+      // Push user message
+      chatHistory.push({ role: 'user', content: text });
+      appendMessageToDOM('user', text);
+      saveChatHistory();
+      scrollToBottom();
+
+      // Show typing indicator
+      const typingDiv = document.createElement('div');
+      typingDiv.id = 'typingIndicator';
+      typingDiv.className = 'flex justify-end mb-4';
+      typingDiv.innerHTML = `
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-400 flex items-center gap-2">
+          <span>دستیار در حال تحلیل و پردازش پاسخ است...</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+        </div>
+      `;
+      messagesContainer.appendChild(typingDiv);
+      scrollToBottom();
+
+      const selectedModel = modelSelector.value;
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: chatHistory,
+            model: selectedModel
+          })
+        });
+
+        const data = await response.json();
+        document.getElementById('typingIndicator')?.remove();
+
+        if (response.ok && data.success) {
+          const reply = data.reply;
+          chatHistory.push({ role: 'model', content: reply });
+          appendMessageToDOM('model', reply);
+          saveChatHistory();
+        } else {
+          const errMsg = data.error || 'خطا در دریافت پاسخ از هوش مصنوعی.';
+          appendMessageToDOM('model', `⚠️ **خطا**: ${errMsg}`);
+        }
+      } catch (err) {
+        document.getElementById('typingIndicator')?.remove();
+        appendMessageToDOM('model', `⚠️ **خطا در ارتباط**: سرور پاسخ نداد (${err.message}).`);
+      }
+      scrollToBottom();
+    });
+
+    function sendQuickPrompt(promptText) {
+      chatInput.value = promptText;
+      chatForm.dispatchEvent(new Event('submit'));
+    }
+
+    clearHistoryBtn.addEventListener('click', () => {
+      if (confirm('آیا از پاک‌سازی تاریخچه مکالمات خود در این دستگاه اطمینان دارید؟')) {
+        chatHistory = [];
+        localStorage.removeItem(storageKey);
+        messagesContainer.innerHTML = '';
+        welcomeBanner.classList.remove('hidden');
+      }
+    });
+
+    // Auto-expand textarea
+    chatInput.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    chatInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        chatForm.dispatchEvent(new Event('submit'));
+      }
+    });
+
+    // =========================================================================
+    // Admin Settings Modal & Dynamic Model Fetching
+    // =========================================================================
+    {% if role == 'admin' %}
+    const settingsModal = document.getElementById('settingsModal');
+    const openSettingsBtn = document.getElementById('openSettingsBtn');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const saveStatusMsg = document.getElementById('saveStatusMsg');
+
+    openSettingsBtn.addEventListener('click', () => {
+      settingsModal.classList.remove('hidden');
+      loadAdminConfig();
+      loadUsersList();
+    });
+
+    function closeModal() {
+      settingsModal.classList.add('hidden');
+    }
+    closeSettingsBtn.addEventListener('click', closeModal);
+    cancelModalBtn.addEventListener('click', closeModal);
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-cyan-400', 'border-b-2', 'border-cyan-400', 'font-medium');
+        btn.classList.add('text-zinc-400');
+      });
+
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`btn-${tabId}`);
+      activeBtn.classList.add('text-cyan-400', 'border-b-2', 'border-cyan-400', 'font-medium');
+      activeBtn.classList.remove('text-zinc-400');
+    }
+
+    async function loadAdminConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        if (data.success) {
+          const cfg = data.config;
+          document.getElementById('cfgGeminiKey').value = cfg.api_settings?.gemini_api_key || '';
+          document.getElementById('cfgOpenRouterKey').value = cfg.api_settings?.openrouter_api_key || '';
+          
+          const p = cfg.proxy_settings || {};
+          document.getElementById('cfgProxyEnabled').checked = !!p.enabled;
+          document.getElementById('cfgProxyHost').value = p.host || '127.0.0.1';
+          document.getElementById('cfgProxyPort').value = p.port || 10808;
+          document.getElementById('cfgProxyUser').value = p.username || '';
+          document.getElementById('cfgProxyPass').value = p.password || '';
+
+          const sk = cfg.skills || {};
+          document.getElementById('skillDockerNginx').checked = sk.docker_nginx !== false;
+          document.getElementById('skillTunnels').checked = sk.network_tunnels !== false;
+          document.getElementById('skillADEsxi').checked = sk.active_directory_esxi !== false;
+          document.getElementById('skillN8n').checked = sk.n8n_automation !== false;
+        }
+      } catch (err) {
+        console.error("Error loading config:", err);
+      }
+    }
+
+    saveConfigBtn.addEventListener('click', async () => {
+      saveStatusMsg.textContent = 'در حال ذخیره‌سازی...';
+      const payload = {
+        api_settings: {
+          gemini_api_key: document.getElementById('cfgGeminiKey').value.trim(),
+          openrouter_api_key: document.getElementById('cfgOpenRouterKey').value.trim(),
+          active_model: modelSelector.value
+        },
+        proxy_settings: {
+          enabled: document.getElementById('cfgProxyEnabled').checked,
+          host: document.getElementById('cfgProxyHost').value.trim(),
+          port: parseInt(document.getElementById('cfgProxyPort').value) || 10808,
+          username: document.getElementById('cfgProxyUser').value.trim(),
+          password: document.getElementById('cfgProxyPass').value
+        },
+        skills: {
+          docker_nginx: document.getElementById('skillDockerNginx').checked,
+          network_tunnels: document.getElementById('skillTunnels').checked,
+          active_directory_esxi: document.getElementById('skillADEsxi').checked,
+          n8n_automation: document.getElementById('skillN8n').checked
+        }
+      };
+
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          saveStatusMsg.textContent = 'تنظیمات با موفقیت ذخیره شد.';
+          saveStatusMsg.className = 'text-xs text-emerald-400';
+          setTimeout(() => { saveStatusMsg.textContent = ''; closeModal(); }, 900);
+        } else {
+          saveStatusMsg.textContent = data.error || 'خطا در ذخیره';
+          saveStatusMsg.className = 'text-xs text-red-400';
+        }
+      } catch (err) {
+        saveStatusMsg.textContent = 'خطا در شبکه';
+        saveStatusMsg.className = 'text-xs text-red-400';
+      }
+    });
+
+    // Test Connection and Fetch Models dynamically (Not Hardcoded)
+    async function testAndFetchModels(provider) {
+      const resBox = document.getElementById('modelFetchResult');
+      resBox.classList.remove('hidden', 'bg-red-950/50', 'text-red-300', 'border-red-800', 'bg-emerald-950/50', 'text-emerald-300', 'border-emerald-800');
+      resBox.classList.add('bg-zinc-900', 'text-zinc-300', 'border-zinc-700');
+      resBox.innerHTML = `در حال اتصال به ${provider} و دریافت لیست مدل‌های فعال از طریق اندپوینت رسمی...`;
+
+      const apiKey = provider === 'gemini' 
+        ? document.getElementById('cfgGeminiKey').value.trim()
+        : document.getElementById('cfgOpenRouterKey').value.trim();
+
+      try {
+        const res = await fetch('/api/models/test-and-fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, api_key: apiKey })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          resBox.classList.remove('bg-zinc-900', 'text-zinc-300', 'border-zinc-700');
+          resBox.classList.add('bg-emerald-950/50', 'text-emerald-300', 'border-emerald-800');
+          resBox.innerHTML = `
+            <strong>✓ ${data.message}</strong>
+            <div class="mt-1 text-[11px] text-zinc-300">مدل‌های استخراج‌شده در لیست انتخاب بالای صفحه قرار گرفتند.</div>
+          `;
+
+          // Dynamically populate select dropdown (No hardcoding)
+          modelSelector.innerHTML = '';
+          data.models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name;
+            opt.className = 'bg-zinc-900 text-white';
+            modelSelector.appendChild(opt);
+          });
+        } else {
+          resBox.classList.remove('bg-zinc-900', 'text-zinc-300', 'border-zinc-700');
+          resBox.classList.add('bg-red-950/50', 'text-red-300', 'border-red-800');
+          resBox.innerHTML = `✗ ${data.error || 'خطا در استخراج مدل‌ها.'}`;
+        }
+      } catch (err) {
+        resBox.classList.add('bg-red-950/50', 'text-red-300', 'border-red-800');
+        resBox.textContent = `خطا در ارتباط با سرور: ${err.message}`;
+      }
+    }
+
+    // User Management API
+    async function loadUsersList() {
+      const container = document.getElementById('usersListContainer');
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        if (data.success) {
+          if (data.users.length === 0) {
+            container.innerHTML = '<div class="p-3 text-zinc-500 text-center">کاربری وجود ندارد.</div>';
+            return;
+          }
+          let html = '<div class="divide-y divide-zinc-800">';
+          data.users.forEach(u => {
+            html += `
+              <div class="p-2.5 flex items-center justify-between hover:bg-zinc-800/40">
+                <div class="flex items-center gap-2">
+                  <span class="font-medium text-white">${u.username}</span>
+                  <span class="text-zinc-500 text-[11px]">(${u.display_name})</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded ${u.role === 'admin' ? 'bg-cyan-950 text-cyan-300 border border-cyan-800' : 'bg-zinc-800 text-zinc-400'}">${u.role}</span>
+                </div>
+                ${u.username !== currentUser ? `
+                  <button onclick="deleteUser('${u.username}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-950/30">
+                    حذف
+                  </button>
+                ` : '<span class="text-[10px] text-zinc-600">حساب جاری</span>'}
+              </div>
+            `;
+          });
+          html += '</div>';
+          container.innerHTML = html;
+        }
+      } catch (e) {
+        container.innerHTML = '<div class="p-3 text-red-400 text-center">خطا در بارگذاری کاربران.</div>';
+      }
+    }
+
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        username: document.getElementById('newUsername').value.trim(),
+        password: document.getElementById('newPassword').value,
+        display_name: document.getElementById('newDisplayName').value.trim(),
+        role: document.getElementById('newRole').value
+      };
+
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('کاربر جدید با موفقیت اضافه شد.');
+          document.getElementById('addUserForm').reset();
+          loadUsersList();
+        } else {
+          alert(data.error || 'خطا در ایجاد کاربر');
+        }
+      } catch (err) {
+        alert('خطای شبکه: ' + err.message);
+      }
+    });
+
+    async function deleteUser(username) {
+      if (!confirm(`آیا از حذف حساب کاربری "${username}" مطمئن هستید؟`)) return;
+      try {
+        const res = await fetch('/api/users', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        const data = await res.json();
+        if (data.success) {
+          loadUsersList();
+        } else {
+          alert(data.error || 'خطا در حذف کاربر');
+        }
+      } catch (err) {
+        alert('خطا در ارتباط با سرور: ' + err.message);
+      }
+    }
+
+    async function triggerServerAction(action) {
+      const verb = action === 'restart' ? 'راه‌اندازی مجدد' : 'خاموش کردن';
+      if (!confirm(`آیا از ${verb} سرور اطمینان دارید؟`)) return;
+
+      const fb = document.getElementById('serverOpFeedback');
+      fb.classList.remove('hidden');
+      fb.className = 'text-xs p-3 rounded-lg border bg-amber-950/50 text-amber-300 border-amber-800';
+      fb.textContent = `درخواست ${verb} سرور ارسال شد...`;
+
+      try {
+        const res = await fetch('/api/server/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        fb.textContent = data.message || 'عملیات در حال انجام است.';
+      } catch (e) {
+        fb.textContent = 'دستور ارسال گردید. سرور در حال اعمال تغییرات است.';
+      }
+    }
+
+    // Terminal Drawer Controls
+    const terminalDrawer = document.getElementById('terminalDrawer');
+    const terminalToggleBtn = document.getElementById('terminalToggleBtn');
+    const closeTerminalBtn = document.getElementById('closeTerminalBtn');
+    const terminalForm = document.getElementById('terminalForm');
+    const terminalInput = document.getElementById('terminalInput');
+    const terminalOutput = document.getElementById('terminalOutput');
+
+    terminalToggleBtn.addEventListener('click', () => {
+      terminalDrawer.classList.toggle('hidden');
+    });
+    closeTerminalBtn.addEventListener('click', () => {
+      terminalDrawer.classList.add('hidden');
+    });
+
+    terminalForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const cmd = terminalInput.value.trim();
+      if (!cmd) return;
+
+      appendTerminalLog(`> ${cmd}`, 'text-cyan-400');
+      terminalInput.value = '';
+
+      try {
+        const res = await fetch('/api/system/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmd })
+        });
+        const data = await res.json();
+        if (data.stdout) appendTerminalLog(data.stdout, 'text-emerald-400');
+        if (data.stderr) appendTerminalLog(data.stderr, 'text-red-400');
+        if (!data.success && data.error) appendTerminalLog(data.error, 'text-red-400');
+      } catch (err) {
+        appendTerminalLog('Execution Error: ' + err.message, 'text-red-400');
+      }
+    });
+
+    async function runQuickAction(action) {
+      appendTerminalLog(`[Executing Quick Action: ${action}...]`, 'text-cyan-400');
+      try {
+        const res = await fetch('/api/system/quick-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        if (data.stdout) appendTerminalLog(data.stdout, 'text-emerald-400');
+        if (data.stderr) appendTerminalLog(data.stderr, 'text-red-400');
+        if (data.metrics) appendTerminalLog(JSON.stringify(data.metrics, null, 2), 'text-zinc-300');
+      } catch (err) {
+        appendTerminalLog('Failed to run action: ' + err.message, 'text-red-400');
+      }
+    }
+
+    function appendTerminalLog(text, colorClass = 'text-emerald-400') {
+      const line = document.createElement('pre');
+      line.className = `${colorClass} whitespace-pre-wrap break-all`;
+      line.textContent = text;
+      terminalOutput.appendChild(line);
+      terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+    {% endif %}
+
+    // Initial boot
+    document.addEventListener('DOMContentLoaded', () => {
+      loadChatHistory();
+    });
+  </script>
+</body>
+</html>
